@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GWA Calculator</title>
+  <style>
+    :root {
+      --primary: #3498db;
+      --bg: #f7f9fc;
+      --text: #2c3e50;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--bg);
+      padding: 30px 20px;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      color: var(--primary);
+    }
+
+    .results {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .results div {
+      margin-top: 5px;
+      font-size: 1.2em;
+    }
+
+    .label {
+      font-size: 1.3em;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    .congrats {
+      color: #27ae60;
+      font-weight: 500;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      font-size: 1em;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #2b80bd;
+    }
+
+    table {
+      width: 100%;
+      max-width: 800px;
+      border-collapse: collapse;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid #eee;
+    }
+
+    input[type="number"] {
+      padding: 8px;
+      width: 100px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1em;
+    }
+
+    @media (max-width: 600px) {
+      input[type="number"] {
+        width: 80px;
+      }
+
+      button {
+        width: 100%;
+        margin: 10px 0;
+      }
+    }
+
+    canvas#confetti-canvas {
+      position: fixed;
+      pointer-events: none;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>GWA Calculator</h1>
+
+  <div class="results">
+    <div class="label" id="gwaResult">GWA: N/A</div>
+    <div class="label" id="recognitionLabel"></div>
+    <div class="congrats" id="congratsMessage"></div>
+  </div>
+
+  <button onclick="addRow()">➕ Add Subject</button>
+
+  <table id="gradesTable">
+    <thead>
+      <tr>
+        <th>Units</th>
+        <th>Grade</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Dynamic rows go here -->
+    </tbody>
+  </table>
+
+  <canvas id="confetti-canvas"></canvas>
+
+  <script>
+    const tableBody = document.querySelector('#gradesTable tbody');
+    const gwaResult = document.getElementById('gwaResult');
+    const recognitionLabel = document.getElementById('recognitionLabel');
+    const congratsMessage = document.getElementById('congratsMessage');
+    const confettiCanvas = document.getElementById('confetti-canvas');
+    const confettiCtx = confettiCanvas.getContext('2d');
+    let confettiActive = false;
+    let confettiParticles = [];
+
+    function addRow() {
+      const row = document.createElement('tr');
+
+      row.innerHTML = `
+        <td><input type="number" min="1" onchange="updateGWA()" step="1" /></td>
+        <td><input type="number" min="1" max="5" onchange="updateGWA()" step="0.01" /></td>
+        <td><button onclick="deleteRow(this)">🗑️ Delete</button></td>
+      `;
+
+      tableBody.appendChild(row);
+    }
+
+    function deleteRow(button) {
+      button.closest('tr').remove();
+      updateGWA();
+    }
+
+    function updateGWA() {
+      const rows = tableBody.querySelectorAll('tr');
+      let totalUnits = 0;
+      let totalPoints = 0;
+
+      rows.forEach(row => {
+        const unitInput = row.cells[0].querySelector('input');
+        const gradeInput = row.cells[1].querySelector('input');
+
+        const units = parseFloat(unitInput.value);
+        const grade = parseFloat(gradeInput.value);
+
+        if (!isNaN(units) && !isNaN(grade)) {
+          totalUnits += units;
+          totalPoints += units * grade;
+        }
+      });
+
+      if (totalUnits === 0) {
+        gwaResult.textContent = 'GWA: N/A';
+        recognitionLabel.textContent = '';
+        congratsMessage.textContent = '';
+        stopConfetti();
+        return;
+      }
+
+      const gwa = (totalPoints / totalUnits).toFixed(2);
+      gwaResult.textContent = `GWA: ${gwa}`;
+      recognitionLabel.textContent = '';
+      congratsMessage.textContent = '';
+      stopConfetti();
+
+      if (gwa <= 1.50) {
+        recognitionLabel.textContent = 'University Scholar';
+        congratsMessage.textContent = '🎉 Congratulations on completing the semester!';
+        startConfetti();
+      } else if (gwa <= 1.75) {
+        recognitionLabel.textContent = 'College Scholar';
+        congratsMessage.textContent = '🎉 Congratulations on completing the semester!';
+        startConfetti();
+      } else if (gwa <= 2.00) {
+        recognitionLabel.textContent = "Dean's Lister";
+      }
+    }
+
+    // Confetti Setup
+    function resizeCanvas() {
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function startConfetti() {
+      confettiActive = true;
+      confettiParticles = Array.from({ length: 100 }, () => ({
+        x: Math.random() * confettiCanvas.width,
+        y: Math.random() * confettiCanvas.height,
+        r: Math.random() * 6 + 4,
+        d: Math.random() * 50 + 10,
+        color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+        tilt: Math.random() * 10 - 10,
+        tiltAngleIncremental: Math.random() * 0.1 + 0.05,
+        tiltAngle: 0
+      }));
+      requestAnimationFrame(drawConfetti);
+    }
+
+    function stopConfetti() {
+      confettiActive = false;
+      confettiParticles = [];
+      confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    }
+
+    function drawConfetti() {
+      if (!confettiActive) return;
+      confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+      confettiParticles.forEach(p => {
+        p.tiltAngle += p.tiltAngleIncremental;
+        p.y += Math.cos(p.d / 10);
+        p.x += Math.sin(p.d / 10);
+        p.tilt = Math.sin(p.tiltAngle) * 15;
+
+        confettiCtx.beginPath();
+        confettiCtx.lineWidth = p.r;
+        confettiCtx.strokeStyle = p.color;
+        confettiCtx.moveTo(p.x + p.tilt + p.r / 2, p.y);
+        confettiCtx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
+        confettiCtx.stroke();
+      });
+
+      requestAnimationFrame(drawConfetti);
+    }
+  </script>
+
+</body>
+</html>
